@@ -75,8 +75,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-
 .filter-panel{position:absolute;top:46px;left:0;width:min(340px,calc(100vw - 32px));margin:0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card);display:flex;flex-direction:column;align-items:stretch;gap:10px;box-shadow:0 24px 60px -28px rgba(30,10,16,.55)}
 .fgroup{display:flex;flex-direction:column;gap:6px;min-width:138px;flex:1 1 150px}
 .fgroup > span{font-size:calc(.56rem * var(--ts,1));letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-.fgroup input{width:100%;padding:.55rem .65rem;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:calc(.8rem * var(--ts,1));outline:none}
-.fgroup input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,94,.12)}
+.fgroup input,.fgroup select{width:100%;padding:.55rem .65rem;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:calc(.8rem * var(--ts,1));outline:none}
+.fgroup input:focus,.fgroup select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,94,.12)}
 .age-tabs{display:flex;gap:6px;flex-wrap:wrap}
 .age-tab{padding:.48rem .72rem;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font-family:var(--sans);font-size:calc(.67rem * var(--ts,1));letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
 .age-tab:hover{border-color:var(--gold);color:var(--accent)}
@@ -303,11 +303,46 @@ body{margin:0;background:var(--bg)}
               <button class="age-tab" type="button" data-age="new">Naye</button>
               <button class="age-tab" type="button" data-age="old">Purane</button>
             </div></div>
-            <div class="row2">
-              <label class="fgroup"><span>Price min (₹)</span><input id="fMin" type="number" min="0" inputmode="numeric" placeholder="Min"></label>
-              <label class="fgroup"><span>Price max (₹)</span><input id="fMax" type="number" min="0" inputmode="numeric" placeholder="Max"></label>
-            </div>
-            <label class="fgroup"><span>Fabric</span><input id="fFabric" type="text" placeholder="jaise: Russian Silk" list="fFabrics" autocomplete="off"><datalist id="fFabrics"><option value="crepe"></option><option value="russian silk "></option><option value="cotton "></option></datalist></label>
+            <label class="fgroup"><span>Fabric</span><select id="fFabric">
+              <option value="">Sab fabrics</option>
+              <option value="cotton">Cotton</option>
+              <option value="cotton dobby">Cotton dobby</option>
+              <option value="cotton flex">Cotton flex</option>
+              <option value="pure muslin">Pure Muslin</option>
+              <option value="crepe">Crepe</option>
+              <option value="shimmer">Shimmer</option>
+              <option value="tissue shimmer">Tissue Shimmer</option>
+              <option value="crush tissue">Crush tissue</option>
+              <option value="chinnon">Chinnon</option>
+              <option value="russian silk">Russian Silk</option>
+              <option value="russian jacquard">Russian jacquard</option>
+              <option value="mul chanderi">Mul Chanderi</option>
+              <option value="gajji silk">Gajji Silk</option>
+              <option value="moss chiffon">Moss Chiffon</option>
+              <option value="giraffe silk">Giraffe Silk</option>
+              <option value="saitn crape">Saitn crape</option>
+              <option value="muslin shimmer">Muslin Shimmer</option>
+            </select></label>
+            <label class="fgroup"><span>Abbreviations</span><select id="fAbbr">
+              <option value="">Sab abbreviations</option>
+              <option value="AK" data-full="Anarkali">AK - Anarkali</option>
+              <option value="3P" data-full="3 pcs straight">3P - 3 pcs straight</option>
+              <option value="2P" data-full="2 pcs straight">2P - 2 pcs straight</option>
+              <option value="SH" data-full="Sharara">SH - Sharara</option>
+              <option value="HF" data-full="Heavy Fancy">HF - Heavy Fancy</option>
+              <option value="KU" data-full="Kurti">KU - Kurti</option>
+              <option value="KT" data-full="Kaaftaan">KT - Kaaftaan</option>
+              <option value="TU" data-full="Tunic">TU - Tunic</option>
+              <option value="GW" data-full="Gown">GW - Gown</option>
+              <option value="CO" data-full="Co-ord set">CO - Co-ord set</option>
+              <option value="IW" data-full="Indo Western">IW - Indo Western</option>
+              <option value="AL" data-full="Aline">AL - Aline</option>
+              <option value="ST" data-full="Shirts">ST - Shirts</option>
+              <option value="3PC" data-full="Cottons 3 pcs">3PC - Cottons 3 pcs</option>
+              <option value="3PM" data-full="Muslin/ crepe/ ho/ dola">3PM - Muslin/ crepe/ ho/ dola</option>
+              <option value="3PF" data-full="fancy 3pcs vansh/ kk/ adi">3PF - fancy 3pcs vansh/ kk/ adi</option>
+              <option value="FS" data-full="Farshi">FS - Farshi</option>
+            </select></label>
             <span class="fnote" id="fCount"></span>
           </div>
         </div>
@@ -896,19 +931,16 @@ window.__GB_TEAM__=[{"name":"Aakash (CRM)","number":"+91 78508 39212"},{"name":"
     if (!bar || !grid || bar.getAttribute("data-ready")) return;
     bar.setAttribute("data-ready", "1");
 
-    var fMin = document.getElementById("fMin");
-    var fMax = document.getElementById("fMax");
     var fFabric = document.getElementById("fFabric");
+    var fAbbr = document.getElementById("fAbbr");
     var fCount = document.getElementById("fCount");
     var fEmpty = document.getElementById("fEmpty");
-    var dl = document.getElementById("fFabrics");
     var age = "all";
 
     function cards() { return [].slice.call(grid.querySelectorAll(".card[data-pid]")); }
-    function num(el) {
-      if (!el || String(el.value || "").trim() === "") return null;
-      var n = parseFloat(el.value);
-      return isFinite(n) ? n : null;
+    function hasToken(s, tok) {
+      var parts = String(s || "").toLowerCase().split(/[^a-z0-9]+/);
+      return parts.indexOf(String(tok || "").toLowerCase()) > -1;
     }
     function params() {
       var q = {};
@@ -924,11 +956,10 @@ window.__GB_TEAM__=[{"name":"Aakash (CRM)","number":"+91 78508 39212"},{"name":"
     function queryString() {
       var parts = [];
       if (age !== "all") parts.push("age=" + encodeURIComponent(age));
-      var lo = num(fMin), hi = num(fMax);
-      if (lo != null) parts.push("min=" + lo);
-      if (hi != null) parts.push("max=" + hi);
-      var fab = fFabric ? String(fFabric.value || "").trim() : "";
+      var fab = fFabric ? String(fFabric.value || "") : "";
       if (fab) parts.push("fabric=" + encodeURIComponent(fab));
+      var ab = fAbbr ? String(fAbbr.value || "") : "";
+      if (ab) parts.push("abbr=" + encodeURIComponent(ab));
       return parts.length ? "?" + parts.join("&") : "";
     }
     function tabs() {
@@ -939,20 +970,24 @@ window.__GB_TEAM__=[{"name":"Aakash (CRM)","number":"+91 78508 39212"},{"name":"
     }
     function apply() {
       var all = cards();
-      var lo = num(fMin), hi = num(fMax);
-      var fab = fFabric ? String(fFabric.value || "").trim().toLowerCase() : "";
+      var fab = fFabric ? String(fFabric.value || "") : "";
+      var ab = fAbbr ? String(fAbbr.value || "") : "";
+      var abFull = "";
+      if (fAbbr && fAbbr.selectedIndex > 0) {
+        abFull = String(fAbbr.options[fAbbr.selectedIndex].getAttribute("data-full") || "");
+      }
       var shown = 0;
       all.forEach(function (c) {
         var ok = true;
         var ca = c.getAttribute("data-age");
         if (age === "new" && ca !== "new") ok = false;
         if (age === "old" && ca !== "old") ok = false;
-        var price = parseFloat(c.getAttribute("data-price") || "0") || 0;
-        if (ok && lo != null) ok = price >= lo;
-        if (ok && hi != null) ok = price <= hi;
         if (ok && fab) {
-          var hay = String(c.getAttribute("data-fabric") || "") + " " + String(c.getAttribute("data-name") || "");
-          ok = hay.indexOf(fab) > -1;
+          ok = String(c.getAttribute("data-fabric") || "") === fab;
+        }
+        if (ok && ab) {
+          var nm = String(c.getAttribute("data-name") || "");
+          ok = hasToken(nm, ab) || (abFull && nm.toLowerCase().indexOf(abFull.toLowerCase()) > -1);
         }
         c.style.display = ok ? "" : "none";
         if (ok) shown++;
@@ -981,20 +1016,8 @@ window.__GB_TEAM__=[{"name":"Aakash (CRM)","number":"+91 78508 39212"},{"name":"
 
     var q = params();
     if (["all", "new", "old"].indexOf(q.age) > -1) age = q.age;
-    if (fMin && q.min != null) fMin.value = q.min;
-    if (fMax && q.max != null) fMax.value = q.max;
     if (fFabric && q.fabric != null) fFabric.value = q.fabric;
-
-    var seen = {};
-    cards().forEach(function (c) {
-      var f = c.getAttribute("data-fabric") || "";
-      if (f && !seen[f] && dl) {
-        seen[f] = 1;
-        var o = document.createElement("option");
-        o.value = f;
-        dl.appendChild(o);
-      }
-    });
+    if (fAbbr && q.abbr != null) fAbbr.value = q.abbr;
 
     document.addEventListener("click", function (e) {
       var t = e.target && e.target.closest ? e.target : (e.target && e.target.parentElement);
@@ -1006,8 +1029,11 @@ window.__GB_TEAM__=[{"name":"Aakash (CRM)","number":"+91 78508 39212"},{"name":"
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePanel();
     });
-    [fMin, fMax, fFabric].forEach(function (el) {
-      if (el) el.addEventListener("input", apply);
+    [fFabric, fAbbr].forEach(function (el) {
+      if (el) {
+        el.addEventListener("input", apply);
+        el.addEventListener("change", apply);
+      }
     });
     apply();
   })();</script>
