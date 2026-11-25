@@ -85,11 +85,11 @@ body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-
 .fnote{align-self:center;font-size:calc(.68rem * var(--ts,1));color:var(--muted);white-space:nowrap}
 .fempty{grid-column:1/-1;text-align:center;padding:42px 12px;color:var(--muted);font-family:var(--serif);font-size:calc(1.15rem * var(--ts,1))}
 
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,3vw,32px)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,3vw,32px);align-items:start}
 
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px -42px rgba(30,10,16,.55)}
-.media{position:relative;display:block;height:auto;background:var(--bg)}
-.gal-stage{position:relative;overflow:hidden;background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;height:auto;min-height:0;box-shadow:0 20px 50px -42px rgba(30,10,16,.55)}
+.media{position:relative;display:block;height:auto;flex:none;background:var(--bg)}
+.gal-stage{position:relative;overflow:hidden;flex:none;background:var(--bg)}
 .gal-stage .shot{position:relative;display:none;margin:0;min-height:clamp(300px,32vw,460px)}
 .gal-stage .shot.on{display:block}
 .gal-stage .shot:has(.ph){height:clamp(360px,40vw,540px)}
@@ -119,7 +119,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-
 .stamp--lg img{max-height:38px;max-width:126px}
 .stamp .mono{font-family:var(--serif);font-size:calc(.8rem * var(--ts,1));font-weight:600;color:#4a1220;letter-spacing:.06em;line-height:1}
 
-.info{padding:18px 20px 20px;display:flex;flex-direction:column;gap:13px;flex:1;min-height:clamp(170px,18vw,210px)}
+.info{padding:18px 20px 20px;display:flex;flex-direction:column;gap:13px;flex:1 0 auto;min-height:clamp(170px,18vw,210px);overflow:visible}
 .info h3{margin:0;font-family:var(--serif);font-size:calc(1.3rem * var(--ts,1));font-weight:600;line-height:1.15;color:var(--accent)}
 .specs{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:13px}
 .spec{display:flex;align-items:baseline;justify-content:space-between;gap:14px;font-size:calc(.86rem * var(--ts,1))}
@@ -140,7 +140,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-
 .cchip.on i{background:var(--btn-ink)}
 .color-view{margin:0;position:absolute;inset:0;z-index:1;display:none;overflow:hidden;background:var(--bg)}
 .color-view img{width:100%;height:100%;display:block;object-fit:contain;padding:8px}
-.buy{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:8px}
+.buy{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;flex:none;padding-top:8px}
 .price{font-family:var(--serif);font-size:calc(1.72rem * var(--ts,1));font-weight:600;line-height:1;color:var(--accent);letter-spacing:.01em}
 .enq{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .95rem;border-radius:999px;background:var(--accent);color:var(--btn-ink);text-decoration:none;font-size:calc(.66rem * var(--ts,1));letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;transition:transform .25s,opacity .25s}
 .enq:hover{transform:translateY(-1px);opacity:.92}
@@ -302,7 +302,11 @@ html[data-theme="midnight"] .cat-logo{background:#f0d9a8}
 
 @media (max-width:860px){
   .grid{grid-template-columns:1fr}
-  .media{height:clamp(330px,88vw,520px)}
+  .media{height:auto}
+  .gal-stage .shot{min-height:clamp(260px,72vw,420px)}
+  .info{padding:16px 16px 18px;min-height:0;gap:12px}
+  .buy{flex-wrap:wrap;gap:10px}
+  .price{font-size:calc(1.5rem * var(--ts,1))}
   .cat-foot{justify-content:center;text-align:center}
 }
 @media print{
@@ -317,7 +321,7 @@ html[data-theme="midnight"] .cat-logo{background:#f0d9a8}
   .catalog{max-width:none;padding:0}
   .grid{grid-template-columns:1fr 1fr;gap:16px}
   .card{break-inside:avoid;box-shadow:none}
-  .media{height:300px}
+  .media{height:auto}
   .lb,.sheet,.cfab,.cdrawer{display:none!important}
   .cat-head{padding-top:10px}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -327,7 +331,7 @@ body{margin:0;background:var(--bg)}
 </style>
 </head>
 <body>
-<div class="catalog" id="catalog" data-font="editorial" style="--ts: 1.2;">
+<div class="catalog" id="catalog" data-font="editorial" style="--ts: 1.25;">
         <div class="filter-menu" id="filterMenu">
           <button class="filter-dots" id="filterDots" type="button" aria-label="Filters" aria-expanded="false"><span></span><span></span><span></span></button>
           <div class="filters filter-panel" id="filters" hidden="">
