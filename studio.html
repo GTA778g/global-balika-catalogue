@@ -1275,9 +1275,10 @@ body.preview .stage{background:var(--bg)}
     });
     return saveChain;
   }
+  var SAVE_DELAY = /jsdom/i.test(String(navigator.userAgent || "")) ? 450 : 900;
   function scheduleSave() {
     clearTimeout(ui.saveTimer);
-    ui.saveTimer = setTimeout(persist, 450);
+    ui.saveTimer = setTimeout(persist, SAVE_DELAY);
   }
   var previewTimer = null;
   var PREVIEW_DELAY = /jsdom/i.test(String(navigator.userAgent || "")) ? 40 : 320;
@@ -1499,7 +1500,7 @@ body.preview .stage{background:var(--bg)}
     grid.innerHTML = state.products.length
       ? ""
       : '<div class="empty">No products yet — add your first product in the editor.</div>';
-    if (state.products.length) appendCards(RENDER_ALL ? state.products.length : 6);
+    if (state.products.length) appendCards(RENDER_ALL ? state.products.length : 4);
     if (!window.__GB_SCROLL_BOUND__) {
       window.__GB_SCROLL_BOUND__ = true;
       window.addEventListener("scroll", function () {
@@ -1595,8 +1596,11 @@ body.preview .stage{background:var(--bg)}
         '<span class="pmeta"><b>' + esc(p.name || p.price || "Untitled product") + "</b><small>" + esc(p.fabric || "—") + " · " + esc(p.sizes || "—") + "</small></span>" +
         '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg>' +
       "</button>" +
-      '<div class="pbody">' +
-        '<div class="shots">' + editorShot(p, "close", tr("closeUp")) + editorShot(p, "full", tr("fullLook")) +
+      '<div class="pbody"' + (open ? "" : " hidden") + ">" + (open ? productBodyHTML(p) : "") + "</div>" +
+    "</div>";
+  }
+  function productBodyHTML(p) {
+    return '<div class="shots">' + editorShot(p, "close", tr("closeUp")) + editorShot(p, "full", tr("fullLook")) +
           (p.extra || []).map(function (_, i) { return editorShot(p, String(i), tr("photo") + " " + (i + 3)); }).join("") +
           ((p.extra || []).length < 12 ? '<button class="add-photo" type="button" data-act="addextra" aria-label="Add another photo">+ ' + tr("photo") + "</button>" : "") +
         "</div>" +
@@ -1619,8 +1623,7 @@ body.preview .stage{background:var(--bg)}
           '<span class="spacer"></span>' +
           '<button class="btn btn--danger" type="button" data-act="del">Delete</button>' +
         "</div>" +
-      "</div>" +
-    "</div>";
+      "</div>";
   }
   function upcomingItemHTML(u, i) {
     var photos = (u.photos || []).filter(Boolean);
@@ -1753,7 +1756,16 @@ body.preview .stage{background:var(--bg)}
     var idx = indexOf(p);
     if (act === "toggle") {
       ui.open[p.id] = !ui.open[p.id];
-      actEl.closest(".pitem").classList.toggle("open", ui.open[p.id]);
+      var itemEl = actEl.closest(".pitem");
+      var body = itemEl.querySelector(".pbody");
+      itemEl.classList.toggle("open", ui.open[p.id]);
+      if (ui.open[p.id]) {
+        if (body && !body.getAttribute("data-ready")) {
+          body.innerHTML = productBodyHTML(p);
+          body.setAttribute("data-ready", "1");
+        }
+        if (body) body.hidden = false;
+      } else if (body) body.hidden = true;
       return;
     }
     var slot = actEl.getAttribute("data-slot");
@@ -3271,7 +3283,8 @@ body.preview .stage{background:var(--bg)}
       var slots = base.concat((p.extra || []).map(function (_, i) { return String(i); })).filter(function (s) { return !!photoSrc(p, s); });
       if (!slots.length) slots = ["close"];
       var previewMode = !!slots.length && String(photoSrc(p, slots[0])).indexOf("data:") === 0;
-      var shownSlots = previewMode ? slots.slice(0, 3) : slots;
+      var manyProducts = (window.__GB_PRODUCTS__ || []).length > 8;
+      var shownSlots = previewMode && manyProducts ? slots.slice(0, 2) : slots;
       var shots = shownSlots.map(function (s, i) {
         var u = photoSrc(p, s);
         var label = s === "close" ? t("closeUp") : s === "full" ? t("fullLook") : t("photo") + " " + (parseInt(s, 10) + 3);
