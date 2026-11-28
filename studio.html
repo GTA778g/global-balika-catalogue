@@ -315,6 +315,7 @@ html[data-theme="midnight"] .cat-logo{background:#f0d9a8}
 .ctot b{color:var(--ink);font-weight:600}
 .csend{width:100%;margin-top:10px;padding:.85rem 1rem;border:0;border-radius:999px;background:var(--accent);color:var(--btn-ink);font-family:var(--sans);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;position:relative;overflow:hidden;box-shadow:0 16px 32px -18px rgba(0,0,0,.8)}
 .csend{animation:gb-glow 2.6s ease-in-out infinite}
+.cnext{margin-top:8px;background:#2a7f62;animation:none}
 .csend::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 22%,rgba(255,255,255,.2) 48%,transparent 74%);background-size:200% 100%;animation:gb-shine 3.6s linear infinite}
 .csend:hover{opacity:.94}
 .csend svg{width:14px;height:14px;fill:currentColor;position:relative}
@@ -878,7 +879,8 @@ body.preview .stage{background:var(--bg)}
        <p class="chint" id="cartSendLead">Salesman chuno — har photo par poora order/set likha hai, sirf photos jayengi.</p>
       <div class="csendlist" id="cartPeople"></div>
       <label class="cphotos"><input type="checkbox" id="cartWithPhotos" checked> <span id="cartPhotosLabel">Photos bhi attach karein</span></label>
-       <p class="chint" id="cartSendHint">Salesman par click karein. Zyada photos ho to batch ke liye dobara click karein.</p>
+       <p class="chint" id="cartSendHint">Salesman chuno — alag-alag photos bheji jayengi.</p>
+      <button class="csend cnext" id="cartNextBatch" type="button" hidden>Agle photos bhejein</button>
       <button class="cback" id="cartBack" type="button">← Cart par wapas</button>
     </div>
   </aside>
@@ -1045,90 +1047,6 @@ body.preview .stage{background:var(--bg)}
       im.src = o.src;
     });
   }
-  /* Bundle every cart card into one JPEG sheet: avoids WhatsApp's 10-file share cap. */
-  function fileToDataURL(blob) {
-    return new Promise(function (resolve, reject) {
-      try {
-        var r = new FileReader();
-        r.onload = function () { resolve(String(r.result || "")); };
-        r.onerror = function () { reject(new Error("read")); };
-        r.readAsDataURL(blob);
-      } catch (e) { reject(e); }
-    });
-  }
-  function canvasToFile(c, name) {
-    return new Promise(function (resolve) {
-      try {
-        var realToBlob = typeof c.toBlob === "function" && !/jsdom/i.test(String(navigator.userAgent || ""));
-        if (realToBlob) {
-          c.toBlob(function (b) {
-            if (!b) { resolve(null); return; }
-            try { resolve(new File([b], name, { type: "image/jpeg" })); }
-            catch (e) { resolve(b); }
-          }, "image/jpeg", 0.92);
-          return;
-        }
-      } catch (e) {}
-      try {
-        var u = c.toDataURL("image/jpeg", 0.92);
-        if (typeof fetch === "function") {
-          fetch(u).then(function (r) { return r.blob(); }).then(function (b) {
-            try { resolve(new File([b], name, { type: "image/jpeg" })); } catch (e) { resolve(b); }
-          }).catch(function () { resolve(null); });
-        } else resolve(null);
-      } catch (e) { resolve(null); }
-    });
-  }
-  function makeBundleFiles(cards) {
-    if (window.__GB_MAKE_BUNDLE__ && window.__GB_MAKE_BUNDLE__ !== makeBundleFiles) {
-      return window.__GB_MAKE_BUNDLE__(cards);
-    }
-    if (!Array.isArray(cards) || !cards.length) return Promise.resolve([]);
-    var CW = 540, CH = 870, GAP = 16, PAD = 22, MAX = 6000, HEAD = 70;
-    var maxCols = Math.max(1, Math.floor((MAX - 2 * PAD + GAP) / (CW + GAP)));
-    var rowsNeeded = function (n, c) { return Math.ceil(n / c); };
-    var cols = Math.min(maxCols, Math.max(1, Math.ceil(Math.sqrt(cards.length * CH / CW))));
-    while (cols < maxCols && rowsNeeded(cards.length, cols) * (CH + GAP) + 2 * PAD + HEAD > MAX) cols++;
-    var rowsPerPage = Math.max(1, Math.floor((MAX - 2 * PAD + GAP) / (CH + GAP)));
-    var perPage = cols * rowsPerPage;
-    var loads = cards.map(function (x) {
-      return fileToDataURL(x.blob).then(function (u) { return loadImage(u); }).catch(function () { return null; });
-    });
-    return Promise.all(loads).then(function (imgs) {
-      var pages = [];
-      for (var start = 0; start < imgs.length; start += perPage) {
-        (function (part, pageIndex) {
-          var rows = Math.ceil(part.length / cols);
-          var w = cols * CW + (cols - 1) * GAP + 2 * PAD;
-          var h = rows * CH + (rows - 1) * GAP + 2 * PAD + HEAD;
-          var c = document.createElement("canvas");
-          c.width = w; c.height = h;
-          var x = c.getContext("2d");
-          x.fillStyle = "#fffaf2"; x.fillRect(0, 0, w, h);
-          x.strokeStyle = "#c9a45e"; x.lineWidth = 8; x.strokeRect(4, 4, w - 8, h - 8);
-          x.fillStyle = "#7a1f2b"; x.font = "600 34px Georgia, serif";
-          var brand = (window.__GB__ && window.__GB__.brand) || "Global Balika";
-          x.fillText(brand + " — order (" + cards.length + " photos)", PAD, 46);
-          part.forEach(function (im, i) {
-            var cx = PAD + (i % cols) * (CW + GAP);
-            var cy = HEAD + PAD + Math.floor(i / cols) * (CH + GAP);
-            x.fillStyle = "#ffffff"; x.fillRect(cx, cy, CW, CH);
-            if (im) {
-              var iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
-              var sc = Math.min(CW / iw, CH / ih);
-              var dw = iw * sc, dh = ih * sc;
-              x.drawImage(im, cx + (CW - dw) / 2, cy + (CH - dh) / 2, dw, dh);
-            }
-            x.strokeStyle = "#e6d2b8"; x.lineWidth = 2; x.strokeRect(cx, cy, CW, CH);
-          });
-          pages.push(canvasToFile(c, "global-balika-order-" + (pageIndex + 1) + ".jpg"));
-        })(imgs.slice(start, start + perPage), pages.length);
-      }
-      return Promise.all(pages).then(function (r) { return r.filter(Boolean); });
-    });
-  }
-  window.__GB_MAKE_BUNDLE__ = makeBundleFiles;
-
   function monogram(brand) {
     var w = String(brand || "GB").trim().split(/\s+/).filter(Boolean);
     if (!w.length) return "GB";
@@ -2611,6 +2529,7 @@ body.preview .stage{background:var(--bg)}
     var cart = [];
     var prepped = [];
     var sendQueue = [];
+    var nextAnchor = null;
     var filesPromise = Promise.resolve();
     var sendMode = false;
 
@@ -2857,10 +2776,9 @@ body.preview .stage{background:var(--bg)}
       });
       filesPromise = Promise.all(jobs).then(function (r) {
         prepped = r.filter(Boolean);
-        if (!prepped.length) { sendQueue = []; return; }
-        return makeBundleFiles(prepped).then(function (bundles) {
-          sendQueue = makeBatches((bundles || []).filter(Boolean));
-        });
+        sendQueue = makeBatches(prepped.map(function (x) {
+          try { return new File([x.blob], x.name, { type: x.type }); } catch (e) { return null; }
+        }).filter(Boolean));
       });
       return filesPromise;
     }
@@ -2868,7 +2786,7 @@ body.preview .stage{background:var(--bg)}
       if (!files.length || !navigator.canShare || !navigator.share) return [];
       if (navigator.canShare({ files: files })) return [files];
       var max = 0;
-      for (var n = Math.min(files.length, 20); n >= 1; n--) {
+      for (var n = Math.min(files.length, 10); n >= 1; n--) {
         if (navigator.canShare({ files: files.slice(0, n) })) { max = n; break; }
       }
       if (!max) return [];
@@ -2881,10 +2799,10 @@ body.preview .stage{background:var(--bg)}
       if (!hint) return;
       if (!sendQueue.length) {
         hint.textContent = "Is device par photo share support nahi — WhatsApp khulega, photo manually attach karein.";
+      } else if (sendQueue.length === 1) {
+        hint.textContent = "Saari " + prepped.length + " alag photos ek batch me jayengi — salesman par click karein.";
       } else {
-        hint.textContent = sendQueue.length === 1
-          ? "Poora order ek hi bundled photo me ready — salesman par click karein."
-          : sendQueue.length + " photos ready — har click par ek jayegi.";
+        hint.textContent = prepped.length + " alag photos " + sendQueue.length + " batches me jayengi — har batch ke baad button dabayein.";
       }
     }
     function markReady() {
@@ -2911,6 +2829,9 @@ body.preview .stage{background:var(--bg)}
       document.getElementById("cartTitle").textContent = T("chooseTitle");
       document.getElementById("cartSub").textContent = cart.length + " " + (cart.length === 1 ? T("selectedOne") : T("selected"));
       document.getElementById("cartSendHint").textContent = T("sendHint");
+      nextAnchor = null;
+      var nb = document.getElementById("cartNextBatch");
+      if (nb) nb.hidden = true;
       prepareFiles().then(function () { markReady(); updateBatchHint(); });
       if (!navigator.canShare || !navigator.share || typeof fetch !== "function") { markReady(); updateBatchHint(); }
     }
@@ -2940,16 +2861,28 @@ body.preview .stage{background:var(--bg)}
         return;
       }
       var batch = sendQueue.shift();
+      var anchorRef = anchor;
+      var nb = document.getElementById("cartNextBatch");
+      if (nb) nb.hidden = true;
       navigator.share({ files: batch }).then(function () {
+        markReady();
         if (sendQueue.length) {
-          markReady();
-          hint.textContent = "Photo bheji gayi — " + sendQueue.length + " baaki hain. Agle ke liye salesman par dobara click karein.";
+          nextAnchor = anchorRef;
+          hint.textContent = batch.length + " alag photos bheji gayi — " + sendQueue.length + " batch(es) baaki.";
+          if (nb) {
+            nb.hidden = false;
+            nb.textContent = "Agle " + sendQueue[0].length + " photos bhejein";
+          }
         } else {
-          hint.textContent = "Poora order bhej diya — 10-photo limit nahi aayi.";
+          nextAnchor = null;
+          hint.textContent = "Sab " + prepped.length + " alag photos bhej di gayi.";
+          if (nb) nb.hidden = true;
         }
       }).catch(function () {
         sendQueue.unshift(batch);
+        nextAnchor = null;
         hint.textContent = "Share cancel ho gaya — dobara click karein.";
+        if (nb) nb.hidden = true;
         markReady();
       });
       return;
@@ -2983,6 +2916,7 @@ body.preview .stage{background:var(--bg)}
       }
       if (e.target.closest("#cartSend")) { showSend(); return; }
       if (e.target.closest("#cartBack")) { hideSend(); return; }
+      if (e.target.closest("#cartNextBatch")) { e.preventDefault(); if (nextAnchor) sendTo(nextAnchor); return; }
       if ((b = e.target.closest("#cartPeople .wa-row"))) { e.preventDefault(); sendTo(b); return; }
     });
     document.addEventListener("keydown", function (e) {
@@ -2993,8 +2927,8 @@ body.preview .stage{background:var(--bg)}
       var set = function (id, text) { var el = document.getElementById(id); if (el) el.textContent = text; };
       set("cartTitle", T("cartTitle"));
       set("cartHint", T("cartHint"));
-      set("cartSendLead", "Har photo par poora order/set likha hai — sirf photos bhejein.");
-      set("cartSendHint", "Salesman par click karein. Zyada photos ho to batch ke liye dobara click karein.");
+      set("cartSendLead", "Har photo alag-alag jayegi — har photo par poora order/set likha hai.");
+      set("cartSendHint", "Salesman chuno — phone jitni photos allow kare utni ek batch me jayengi.");
       set("cartPhotosLabel", T("withPhotos"));
       set("cartSendLabel", T("send"));
       set("cartClear", T("clear"));
@@ -3423,11 +3357,6 @@ body.preview .stage{background:var(--bg)}
       "window.__GB_ICONS__=" + inlineJSON({ wa: WA_ICON, cart: CART_ICON }) + ";" +
       (useAssets ? "window.__GB_PRODUCTS__=" + inlineJSON(exportProducts) + ";window.__GB_RENDERED__=" + renderedCount + ";(" + bootLoadMore.toString() + ")();" : "") +
       "window.__GB_MAKE_CARD__=(" + productCardImage.toString() + ");" +
-      "var loadImage=(" + loadImage.toString() + ");" +
-      "var fileToDataURL=(" + fileToDataURL.toString() + ");" +
-      "var canvasToFile=(" + canvasToFile.toString() + ");" +
-      "var makeBundleFiles=(" + makeBundleFiles.toString() + ");" +
-      "window.__GB_MAKE_BUNDLE__=makeBundleFiles;" +
       "(" + bootSheet.toString() + ")();" +
       "(" + bootColors.toString() + ")();" +
       "(" + bootGallery.toString() + ")();" +
