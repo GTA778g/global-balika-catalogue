@@ -1047,6 +1047,85 @@ body.preview .stage{background:var(--bg)}
       im.src = o.src;
     });
   }
+  /* Hybrid share: <=10 photos go individually; >10 become 6-photo bundles. */
+  function fileToDataURL(blob) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var r = new FileReader();
+        r.onload = function () { resolve(String(r.result || "")); };
+        r.onerror = function () { reject(new Error("read")); };
+        r.readAsDataURL(blob);
+      } catch (e) { reject(e); }
+    });
+  }
+  function canvasToFile(c, name) {
+    return new Promise(function (resolve) {
+      try {
+        var realToBlob = typeof c.toBlob === "function" && !/jsdom/i.test(String(navigator.userAgent || ""));
+        if (realToBlob) {
+          c.toBlob(function (b) {
+            if (!b) { resolve(null); return; }
+            try { resolve(new File([b], name, { type: "image/jpeg" })); }
+            catch (e) { resolve(b); }
+          }, "image/jpeg", 0.92);
+          return;
+        }
+      } catch (e) {}
+      try {
+        var u = c.toDataURL("image/jpeg", 0.92);
+        if (typeof fetch === "function") {
+          fetch(u).then(function (r) { return r.blob(); }).then(function (b) {
+            try { resolve(new File([b], name, { type: "image/jpeg" })); } catch (e) { resolve(b); }
+          }).catch(function () { resolve(null); });
+        } else resolve(null);
+      } catch (e) { resolve(null); }
+    });
+  }
+  function makeBundleFiles(cards, groupSize) {
+    if (window.__GB_MAKE_BUNDLE__ && window.__GB_MAKE_BUNDLE__ !== makeBundleFiles) {
+      return window.__GB_MAKE_BUNDLE__(cards, groupSize);
+    }
+    if (!Array.isArray(cards) || !cards.length) return Promise.resolve([]);
+    var GROUP = Math.max(1, Math.min(10, parseInt(groupSize, 10) || 6));
+    var CW = 540, CH = 870, GAP = 16, PAD = 22, HEAD = 70, COLS = 2;
+    var loads = cards.map(function (x) {
+      return fileToDataURL(x.blob).then(function (u) { return loadImage(u); }).catch(function () { return null; });
+    });
+    return Promise.all(loads).then(function (imgs) {
+      var pages = [];
+      for (var start = 0; start < imgs.length; start += GROUP) {
+        (function (part, pageIndex) {
+          var rows = Math.ceil(part.length / COLS);
+          var w = COLS * CW + (COLS - 1) * GAP + 2 * PAD;
+          var h = rows * CH + (rows - 1) * GAP + 2 * PAD + HEAD;
+          var c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          var x = c.getContext("2d");
+          x.fillStyle = "#fffaf2"; x.fillRect(0, 0, w, h);
+          x.strokeStyle = "#c9a45e"; x.lineWidth = 8; x.strokeRect(4, 4, w - 8, h - 8);
+          x.fillStyle = "#7a1f2b"; x.font = "600 34px Georgia, serif";
+          var brand = (window.__GB__ && window.__GB__.brand) || "Global Balika";
+          x.fillText(brand + " — " + part.length + " photos (" + (pageIndex + 1) + "/" + Math.ceil(imgs.length / GROUP) + ")", PAD, 46);
+          part.forEach(function (im, i) {
+            var cx = PAD + (i % COLS) * (CW + GAP);
+            var cy = HEAD + PAD + Math.floor(i / COLS) * (CH + GAP);
+            x.fillStyle = "#ffffff"; x.fillRect(cx, cy, CW, CH);
+            if (im) {
+              var iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+              var sc = Math.min(CW / iw, CH / ih);
+              var dw = iw * sc, dh = ih * sc;
+              x.drawImage(im, cx + (CW - dw) / 2, cy + (CH - dh) / 2, dw, dh);
+            }
+            x.strokeStyle = "#e6d2b8"; x.lineWidth = 2; x.strokeRect(cx, cy, CW, CH);
+          });
+          pages.push(canvasToFile(c, "bundle-" + (pageIndex + 1) + "-" + part.length + ".jpg"));
+        })(imgs.slice(start, start + GROUP), pages.length);
+      }
+      return Promise.all(pages).then(function (r) { return r.filter(Boolean); });
+    });
+  }
+  window.__GB_MAKE_BUNDLE__ = makeBundleFiles;
+
   function monogram(brand) {
     var w = String(brand || "GB").trim().split(/\s+/).filter(Boolean);
     if (!w.length) return "GB";
@@ -2529,6 +2608,7 @@ body.preview .stage{background:var(--bg)}
     var cart = [];
     var prepped = [];
     var sendQueue = [];
+    var photoMode = "individual";
     var nextAnchor = null;
     var filesPromise = Promise.resolve();
     var sendMode = false;
@@ -2776,9 +2856,19 @@ body.preview .stage{background:var(--bg)}
       });
       filesPromise = Promise.all(jobs).then(function (r) {
         prepped = r.filter(Boolean);
-        sendQueue = makeBatches(prepped.map(function (x) {
+        var files = prepped.map(function (x) {
           try { return new File([x.blob], x.name, { type: x.type }); } catch (e) { return null; }
-        }).filter(Boolean));
+        }).filter(Boolean);
+        if (!files.length) { sendQueue = []; photoMode = "empty"; return; }
+        if (files.length <= 10) {
+          photoMode = "individual";
+          sendQueue = [files];
+          return;
+        }
+        photoMode = "bundled";
+        return makeBundleFiles(prepped, 6).then(function (bundles) {
+          sendQueue = makeBatches((bundles || []).filter(Boolean));
+        });
       });
       return filesPromise;
     }
@@ -2799,10 +2889,12 @@ body.preview .stage{background:var(--bg)}
       if (!hint) return;
       if (!sendQueue.length) {
         hint.textContent = "Is device par photo share support nahi — WhatsApp khulega, photo manually attach karein.";
-      } else if (sendQueue.length === 1) {
-        hint.textContent = "Saari " + prepped.length + " alag photos ek batch me jayengi — salesman par click karein.";
+      } else if (photoMode === "individual") {
+        hint.textContent = prepped.length + " alag photos ek hi click me jayengi.";
       } else {
-        hint.textContent = prepped.length + " alag photos " + sendQueue.length + " batches me jayengi — har batch ke baad button dabayein.";
+        var totalBundles = sendQueue.reduce(function (n, b) { return n + b.length; }, 0);
+        hint.textContent = prepped.length + " photos → " + totalBundles + " bundles (6-6 photos)" +
+          (sendQueue.length === 1 ? " — ek hi click me sab jayenge." : " — " + sendQueue.length + " batches; har baad button dabayein.");
       }
     }
     function markReady() {
@@ -2868,14 +2960,18 @@ body.preview .stage{background:var(--bg)}
         markReady();
         if (sendQueue.length) {
           nextAnchor = anchorRef;
-          hint.textContent = batch.length + " alag photos bheji gayi — " + sendQueue.length + " batch(es) baaki.";
+          hint.textContent = (photoMode === "bundled" ? batch.length + " bundle" : batch.length + " photos") + " bheje gaye — " + sendQueue.length + " batch(es) baaki.";
           if (nb) {
             nb.hidden = false;
-            nb.textContent = "Agle " + sendQueue[0].length + " photos bhejein";
+            nb.textContent = photoMode === "bundled"
+              ? "Agle " + sendQueue[0].length + " bundles bhejein"
+              : "Agle " + sendQueue[0].length + " photos bhejein";
           }
         } else {
           nextAnchor = null;
-          hint.textContent = "Sab " + prepped.length + " alag photos bhej di gayi.";
+          hint.textContent = photoMode === "bundled"
+            ? "Sab " + prepped.length + " photos " + batch.length + " bundles me bhej di gayi."
+            : "Sab " + prepped.length + " alag photos bhej di gayi.";
           if (nb) nb.hidden = true;
         }
       }).catch(function () {
@@ -2927,8 +3023,8 @@ body.preview .stage{background:var(--bg)}
       var set = function (id, text) { var el = document.getElementById(id); if (el) el.textContent = text; };
       set("cartTitle", T("cartTitle"));
       set("cartHint", T("cartHint"));
-      set("cartSendLead", "Har photo alag-alag jayegi — har photo par poora order/set likha hai.");
-      set("cartSendHint", "Salesman chuno — phone jitni photos allow kare utni ek batch me jayengi.");
+      set("cartSendLead", "10 ya kam photos alag-alag; zyada ho to 6-6 ke bundles — har photo par detail likha hai.");
+      set("cartSendHint", "Salesman chuno — order size ke hisaab se apne aap mode decide hoga.");
       set("cartPhotosLabel", T("withPhotos"));
       set("cartSendLabel", T("send"));
       set("cartClear", T("clear"));
@@ -3357,6 +3453,11 @@ body.preview .stage{background:var(--bg)}
       "window.__GB_ICONS__=" + inlineJSON({ wa: WA_ICON, cart: CART_ICON }) + ";" +
       (useAssets ? "window.__GB_PRODUCTS__=" + inlineJSON(exportProducts) + ";window.__GB_RENDERED__=" + renderedCount + ";(" + bootLoadMore.toString() + ")();" : "") +
       "window.__GB_MAKE_CARD__=(" + productCardImage.toString() + ");" +
+      "var loadImage=(" + loadImage.toString() + ");" +
+      "var fileToDataURL=(" + fileToDataURL.toString() + ");" +
+      "var canvasToFile=(" + canvasToFile.toString() + ");" +
+      "var makeBundleFiles=(" + makeBundleFiles.toString() + ");" +
+      "window.__GB_MAKE_BUNDLE__=makeBundleFiles;" +
       "(" + bootSheet.toString() + ")();" +
       "(" + bootColors.toString() + ")();" +
       "(" + bootGallery.toString() + ")();" +
